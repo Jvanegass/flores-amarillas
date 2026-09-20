@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Feliz Día de las Flores Amarillas 🌻</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+    body { background-color: #050400; overflow: hidden; font-family: 'Patrick Hand', 'Comic Sans MS', cursive, sans-serif; color: #fff; touch-action: none; }
+    #webgl-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; display: block; }
+    
+    .title-banner { position: fixed; top: 25px; left: 50%; transform: translateX(-50%); z-index: 10; text-align: center; pointer-events: none; width: 100%; }
+    .title-banner h1 { font-size: 2.2rem; font-weight: normal; color: #ffeb85; text-shadow: 0 0 15px rgba(255, 215, 0, 0.9), 2px 2px 4px rgba(0,0,0,0.9); line-height: 1.2; }
+    
+    .controls { position: fixed; bottom: 30px; left: 20px; z-index: 20; }
+    .btn { background: rgba(15, 12, 0, 0.7); border: 1px solid rgba(255, 215, 0, 0.5); color: #ffeb85; padding: 10px 18px; border-radius: 30px; font-size: 1.1rem; cursor: pointer; backdrop-filter: blur(5px); font-family: 'Patrick Hand', cursive; transition: transform 0.2s; box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); }
+    .btn:hover { transform: scale(1.05); }
+
+    .envelope-btn { position: fixed; bottom: 30px; right: 25px; width: 60px; height: 60px; background: #ffc107; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; cursor: pointer; box-shadow: 0 0 25px rgba(255, 215, 0, 0.6); z-index: 20; transition: transform 0.2s; border: 2px solid #fff5b0; color: #000; }
+    .envelope-btn:hover { transform: scale(1.1); }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 50; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; padding: 20px; }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    
+    .modal-card { background: #141000; border: 1px solid #ffca28; border-radius: 16px; padding: 40px 30px; max-width: 380px; width: 100%; box-shadow: 0 0 50px rgba(255, 215, 0, 0.25); position: relative; text-align: left; transform: translateY(20px); transition: transform 0.3s ease; }
+    .modal-overlay.active .modal-card { transform: translateY(0); }
+    
+    .modal-close { position: absolute; top: 15px; right: 20px; background: transparent; border: none; color: #ffca28; font-size: 1.5rem; cursor: pointer; font-family: sans-serif; }
+    .modal-card h2 { color: #ffca28; font-size: 2.2rem; margin-bottom: 25px; text-align: center; text-shadow: 0 0 15px rgba(255,200,0,0.4); }
+    .modal-card p { font-size: 1.3rem; line-height: 1.5; color: #fff8e1; margin-bottom: 20px; letter-spacing: 0.5px; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+  <div class="title-banner">
+    <h1>Feliz Día de las Flores<br>Amarillas 🌻</h1>
+  </div>
+
+  <canvas id="webgl-canvas"></canvas>
+
+  <!-- AQUÍ ESTÁ EL REPRODUCTOR OCULTO -->
+  <audio id="bgMusic" loop>
+    <source src="cancion.mp3" type="audio/mpeg">
+  </audio>
+
+  <div class="controls">
+    <button class="btn" id="audioBtn">🎵 Reproducir Canción</button>
+  </div>
+
+  <div class="envelope-btn" id="openLetterBtn">💌</div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-card">
+      <button class="modal-close" id="modalClose">✕</button>
+      <h2 id="modalTitle">Para ti 💛</h2>
+      <div id="modalBody">
+        <p>Hay personas que llegan y, sin darse cuenta, hacen que muchos de tus días sean mejores. Así eres tú para mí.</p>
+        <p>Gracias por cada momento compartido, por las risas y por estar ahí incluso en lo simple. Quiero que sepas cuánto vales y cuánto significas para mí.</p>
+        <p>Que esta flor amarilla te recuerde, hoy y siempre, lo especial que eres.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // -------------------------------------------------------------
+    // 1. Configuración de Escena y Cámara
+    // -------------------------------------------------------------
+    const canvas = document.getElementById('webgl-canvas');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050400, 0.005); 
+
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 70); 
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const universeGroup = new THREE.Group();
+    scene.add(universeGroup);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.autoRotate = true; 
+    controls.autoRotateSpeed = 0.6;
+    controls.maxDistance = 120;
+    controls.minDistance = 10;
+
+    function createGlowTexture(colorCenter, colorEdge) {
+      const c = document.createElement('canvas'); c.width = 32; c.height = 32;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+      grad.addColorStop(0, colorCenter);
+      grad.addColorStop(0.5, colorEdge);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, 32, 32);
+      return new THREE.CanvasTexture(c);
+    }
+    const texBright = createGlowTexture('rgba(255,255,255,1)', 'rgba(255,230,80,0.9)');
+    const texYellow = createGlowTexture('rgba(255,245,150,1)', 'rgba(255,210,0,0.7)'); 
+
+    // -------------------------------------------------------------
+    // 2. Figura Principal
+    // -------------------------------------------------------------
+    const figureGroup = new THREE.Group();
+    universeGroup.add(figureGroup);
+
+    function createSunAura() {
+      const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+      grad.addColorStop(0, 'rgba(255, 255, 230, 1)');
+      grad.addColorStop(0.2, 'rgba(255, 215, 0, 0.6)');
+      grad.addColorStop(0.6, 'rgba(200, 150, 0, 0.15)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, 256, 256);
+      return new THREE.CanvasTexture(c);
+    }
+    const sunAuraMat = new THREE.SpriteMaterial({
+      map: createSunAura(), blending: THREE.AdditiveBlending, transparent: true, opacity: 0.95
+    });
+    const sunAura = new THREE.Sprite(sunAuraMat);
+    sunAura.scale.set(65, 65, 1); 
+    sunAura.position.set(0, 6, -3); 
+    figureGroup.add(sunAura);
+
+    const centerCount = 3500;
+    const centerGeo = new THREE.BufferGeometry();
+    const posHeart = new Float32Array(centerCount * 3);
+    const posFlower = new Float32Array(centerCount * 3);
+    const posCurrent = new Float32Array(centerCount * 3);
+
+    for (let i = 0; i < centerCount; i++) {
+      const t = Math.PI * 2 * Math.random();
+      let hX = 16 * Math.pow(Math.sin(t), 3);
+      let hY = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+      const scatterH = (Math.random() - 0.5) * 1.5;
+      posHeart[i*3] = (hX * 0.5) + scatterH; 
+      posHeart[i*3+1] = (hY * 0.5) + 6 + scatterH; 
+      posHeart[i*3+2] = (Math.random() - 0.5) * 2;
+
+      const petals = 10;
+      const r = 7 + 3.5 * Math.sin(petals * t); 
+      const dist = Math.random() * r; 
+      posFlower[i*3] = dist * Math.cos(t);
+      posFlower[i*3+1] = dist * Math.sin(t) + 6;
+      posFlower[i*3+2] = (Math.random() - 0.5) * 2;
+
+      posCurrent[i*3] = posHeart[i*3];
+      posCurrent[i*3+1] = posHeart[i*3+1];
+      posCurrent[i*3+2] = posHeart[i*3+2];
+    }
+    centerGeo.setAttribute('position', new THREE.BufferAttribute(posCurrent, 3));
+    const centerMat = new THREE.PointsMaterial({
+      size: 0.7, color: 0xffffff, transparent: true, opacity: 1, 
+      blending: THREE.AdditiveBlending, map: texBright, depthWrite: false
+    });
+    figureGroup.add(new THREE.Points(centerGeo, centerMat));
+
+    const ringGeo = new THREE.BufferGeometry();
+    const ringPos = new Float32Array(5000 * 3);
+    for(let i=0; i<5000; i++){
+      const theta = Math.random() * Math.PI * 2;
+      const r = 12 + Math.random() * 18 + (Math.random() > 0.8 ? Math.random()*15 : 0); 
+      ringPos[i*3] = Math.cos(theta) * r;
+      ringPos[i*3+1] = 4 + (Math.random() - 0.5) * 1.5; 
+      ringPos[i*3+2] = Math.sin(theta) * r;
+    }
+    ringGeo.setAttribute('position', new THREE.BufferAttribute(ringPos, 3));
+    const ringMat = new THREE.PointsMaterial({
+      size: 0.45, color: 0xffdd00, transparent: true, opacity: 0.7,
+      blending: THREE.AdditiveBlending, map: texYellow, depthWrite: false
+    });
+    figureGroup.add(new THREE.Points(ringGeo, ringMat));
+
+    const spiralCount = 10000; 
+    const spiralGeo = new THREE.BufferGeometry();
+    const spiralPos = new Float32Array(spiralCount * 3);
+    const spiralCol = new Float32Array(spiralCount * 3);
+    const colorTop = new THREE.Color(1.0, 0.95, 0.5); 
+    const colorBottom = new THREE.Color(1.0, 0.8, 0.0); 
+
+    for (let i = 0; i < spiralCount; i++) {
+      const t = i / spiralCount; 
+      const angle = t * Math.PI * 10; 
+      const radius = 3 + t * 40; 
+      const y = 3 - (t * 30); 
+      
+      const scatterX = (Math.random() - 0.5) * (3 + t * 15);
+      const scatterY = (Math.random() - 0.5) * (1 + t * 4);
+      const scatterZ = (Math.random() - 0.5) * (3 + t * 15);
+
+      spiralPos[i*3] = Math.cos(angle) * radius + scatterX;
+      spiralPos[i*3+1] = y + scatterY;
+      spiralPos[i*3+2] = Math.sin(angle) * radius + scatterZ;
+
+      const mixed = colorTop.clone().lerp(colorBottom, t);
+      spiralCol[i*3] = mixed.r; spiralCol[i*3+1] = mixed.g; spiralCol[i*3+2] = mixed.b;
+    }
+    spiralGeo.setAttribute('position', new THREE.BufferAttribute(spiralPos, 3));
+    spiralGeo.setAttribute('color', new THREE.BufferAttribute(spiralCol, 3));
+    const spiralMat = new THREE.PointsMaterial({
+      size: 0.55, vertexColors: true, transparent: true, opacity: 0.85,
+      blending: THREE.AdditiveBlending, map: texYellow, depthWrite: false
+    });
+    figureGroup.add(new THREE.Points(spiralGeo, spiralMat));
+
+    const bgGeo = new THREE.BufferGeometry();
+    const bgPos = new Float32Array(2000 * 3);
+    for(let i=0; i<2000; i++){
+      bgPos[i*3] = (Math.random()-0.5)*150;
+      bgPos[i*3+1] = (Math.random()-0.5)*150;
+      bgPos[i*3+2] = (Math.random()-0.5)*150;
+    }
+    bgGeo.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));
+    universeGroup.add(new THREE.Points(bgGeo, new THREE.PointsMaterial({size: 0.25, color: 0xffffff, transparent:true, opacity:0.3})));
+
+    // -------------------------------------------------------------
+    // 3. Fondo Lleno de Frases y Emojis
+    // -------------------------------------------------------------
+    const quotes = [
+      "Contigo todo es mejor", "Apareces cuando más hace falta", 
+      "Mirás lo bueno, como el girasol", "Tu cariño nunca pasa de moda",
+      "El amarillo también dice te quiero", "Gracias por ser mi paz",
+      "Eres mi refugio favorito", "Un girasol para mi vida entera",
+      "Te volvería a elegir mil veces", "Contigo el día pesa menos", 
+      "Eres la casualidad más bonita", "Que esta flor te alcance hoy",
+      "Tu sonrisa me hace bien a los días", "Aquí siempre tienes un lugar",
+      "El campo entero te manda saludos", "21 de septiembre, contigo siempre"
+    ];
+
+    function createTextMaterial(text) {
+      const c = document.createElement('canvas'); c.width = 1024; c.height = 80;
+      const ctx = c.getContext('2d');
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '32px "Patrick Hand", "Comic Sans MS", cursive';
+      ctx.shadowColor = 'rgba(0, 0, 0, 1)';
+      ctx.shadowBlur = 5;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+      ctx.strokeText(text, 512, 40);
+      ctx.fillStyle = '#fff4bd';
+      ctx.fillText(text, 512, 40);
+      return new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, opacity: 0.9 });
+    }
+
+    function createEmojiMat(emoji, size=128) {
+      const c = document.createElement('canvas'); c.width = size; c.height = size;
+      const ctx = c.getContext('2d');
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `${size*0.7}px sans-serif`;
+      ctx.shadowColor = 'rgba(255, 215, 0, 0.5)'; ctx.shadowBlur = 12;
+      ctx.fillText(emoji, size/2, size/2 + size*0.05);
+      return new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true });
+    }
+
+    const textSprites = quotes.map(q => createTextMaterial(q));
+    const flowerMat = createEmojiMat('🌻');
+    const bouquetMat = createEmojiMat('💐');
+    const emojiHeartMat = createEmojiMat('💛'); 
+
+    for(let i=0; i<120; i++) {
+      const sprite = new THREE.Sprite(textSprites[i % textSprites.length]);
+      sprite.scale.set(16, 1.25, 1); 
+      const r = 18 + Math.random() * 55; 
+      const theta = Math.random() * Math.PI * 2;
+      const y = (Math.random() - 0.5) * 80; 
+      sprite.position.set(Math.cos(theta) * r, y, Math.sin(theta) * r);
+      universeGroup.add(sprite);
+    }
+
+    for(let i=0; i<80; i++) {
+      const sprite = new THREE.Sprite(Math.random() > 0.2 ? flowerMat : bouquetMat);
+      const s = 1.5 + Math.random() * 2.5; 
+      sprite.scale.set(s, s, 1);
+      const r = 12 + Math.random() * 60;
+      const theta = Math.random() * Math.PI * 2;
+      const y = (Math.random() - 0.5) * 80;
+      sprite.position.set(Math.cos(theta) * r, y, Math.sin(theta) * r);
+      universeGroup.add(sprite);
+    }
+
+    // -------------------------------------------------------------
+    // 4. Corazones Interactivos
+    // -------------------------------------------------------------
+    const loveNotes = [
+      { t: "Para ti 💛", c: "Cada girasol en este universo representa un momento feliz a tu lado. Gracias por llenar mis días de luz." },
+      { t: "Mi Refugio 🌻", c: "En medio de tanto ruido en el mundo, tu abrazo es mi lugar más seguro y pacífico." },
+      { t: "Luz Eterna ✨", c: "Eres como esa flor amarilla que florece fuerte, iluminando todo a su alrededor." }
+    ];
+
+    const interactables = [];
+    for(let i=0; i<12; i++) {
+      const sprite = new THREE.Sprite(emojiHeartMat); 
+      sprite.scale.set(3.5, 3.5, 1); 
+      const r = 10 + Math.random() * 25;
+      const theta = Math.random() * Math.PI * 2;
+      const y = (Math.random() - 0.5) * 35;
+      sprite.position.set(Math.cos(theta) * r, y, Math.sin(theta) * r);
+      sprite.userData = { note: loveNotes[Math.floor(Math.random() * loveNotes.length)] };
+      interactables.push(sprite);
+      universeGroup.add(sprite);
+    }
+
+    // -------------------------------------------------------------
+    // 5. Interacciones (Clics)
+    // -------------------------------------------------------------
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let pointerDown = { x: 0, y: 0 };
+
+    window.addEventListener('pointerdown', e => { pointerDown = { x: e.clientX, y: e.clientY }; });
+    window.addEventListener('pointerup', e => {
+      const dist = Math.hypot(e.clientX - pointerDown.x, e.clientY - pointerDown.y);
+      if (dist < 5) {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+        
+        const hits = raycaster.intersectObjects(interactables);
+        if (hits.length > 0) {
+          document.getElementById('modalTitle').textContent = hits[0].object.userData.note.t;
+          document.getElementById('modalBody').innerHTML = `<p>${hits[0].object.userData.note.c}</p>`;
+          document.getElementById('modalOverlay').classList.add('active');
+        }
+      }
+    });
+
+    document.getElementById('openLetterBtn').addEventListener('click', () => {
+      document.getElementById('modalTitle').textContent = "Para ti 💛";
+      document.getElementById('modalBody').innerHTML = `
+        <p>Hay personas que llegan y, sin darse cuenta, hacen que muchos de tus días sean mejores. Así eres tú para mí.</p>
+        <p>Gracias por cada momento compartido, por las risas y por estar ahí incluso en lo simple. Quiero que sepas cuánto vales y cuánto significas para mí.</p>
+        <p>Que esta flor amarilla te recuerde, hoy y siempre, lo especial que eres.</p>
+      `;
+      document.getElementById('modalOverlay').classList.add('active');
+    });
+
+    document.getElementById('modalClose').addEventListener('click', () => document.getElementById('modalOverlay').classList.remove('active'));
+    document.getElementById('modalOverlay').addEventListener('click', e => { if(e.target.id === 'modalOverlay') document.getElementById('modalOverlay').classList.remove('active'); });
+
+    // -------------------------------------------------------------
+    // 6. Animación Principal
+    // -------------------------------------------------------------
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const time = clock.getElapsedTime();
+      
+      controls.update(); 
+
+      const morphTarget = (Math.sin(time * 0.8) + 1) / 2; 
+      const positions = centerGeo.attributes.position.array;
+      for(let i = 0; i < centerCount; i++) {
+        const i3 = i * 3;
+        positions[i3] = posHeart[i3] + (posFlower[i3] - posHeart[i3]) * morphTarget;
+        positions[i3+1] = posHeart[i3+1] + (posFlower[i3+1] - posHeart[i3+1]) * morphTarget;
+        positions[i3+2] = posHeart[i3+2] + (posFlower[i3+2] - posHeart[i3+2]) * morphTarget;
+      }
+      centerGeo.attributes.position.needsUpdate = true;
+
+      const heartbeat = 1 + Math.sin(time * 3) * 0.02;
+      figureGroup.scale.set(heartbeat, heartbeat, heartbeat);
+      sunAuraMat.opacity = 0.85 + Math.sin(time * 4) * 0.15;
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight; 
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // -------------------------------------------------------------
+    // 7. Reproductor MP3
+    // -------------------------------------------------------------
+    const bgMusic = document.getElementById('bgMusic');
+    const audioBtn = document.getElementById('audioBtn');
+    let isPlaying = false;
+
+    audioBtn.addEventListener('click', function() {
+      if (!isPlaying) {
+        bgMusic.play();
+        isPlaying = true;
+        this.textContent = "⏸️ Pausar Canción";
+      } else {
+        bgMusic.pause();
+        isPlaying = false;
+        this.textContent = "🎵 Reproducir Canción";
+      }
+    });
+  </script>
+</body>
+</html>
